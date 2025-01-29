@@ -24,7 +24,7 @@ Control <- RunSVD(Control)
 Control <- RunUMAP(Control, reduction = 'lsi', dims = 2:10, assay = 'ATAC',
                     reduction.name = "umap.atac", reduction.key = "atacUMAP_", spread = 0.28)
 Control <- FindNeighbors(Control, reduction = 'lsi', dims = 2:10, assay = 'ATAC')
-Control <- FindClusters(Control, graph.name = 'ATAC_snn', algorithm = 2, resolution = 0.7)
+Control <- FindClusters(Control, graph.name = 'ATAC_snn', algorithm = 2, resolution = 0.5)
   
 # Weighted nearest neighbor (WNN) analysis using both modalities
 Control <- FindMultiModalNeighbors(Control,
