@@ -56,7 +56,7 @@ Control <- TSSEnrichment(Control, fast = FALSE)
 Control$pct_reads_in_peaks <- Control$atac_peak_region_fragments / Control$atac_fragments * 100
 
 #Peak calling
-system('bash -c "/home/ayush/.local/bin/macs2 callpeak -t /mnt/d/.../atac_fragments_control.tsv.gz -g 1.4e+09 -f BED --nomodel --extsize 200 --shift -100 -n Control_cerbx_script --outdir /mnt/d/Transit/Single_Cell+ATAC/Control/ATAC/Data+Analysis/Analysis.Control/Cerebrocortex" ', 
+system('bash -c "/..../macs2 callpeak -t /mnt/d/.../atac_fragments_control.tsv.gz -g 1.4e+09 -f BED --nomodel --extsize 200 --shift -100 -n Control_cerbx_script --outdir /mnt/d/Transit/Single_Cell+ATAC/Control/ATAC/Data+Analysis/Analysis.Control/Cerebrocortex" ', 
                 wait = TRUE,  ignore.stderr = FALSE,  ignore.stdout = FALSE)
 peak_path <- ".../Control_cerbx_script_peaks.narrowPeak"
 peaks <- rtracklayer::import(peak_path, format = "narrowPeak")
