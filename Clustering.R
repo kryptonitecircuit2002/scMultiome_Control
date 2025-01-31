@@ -1,5 +1,5 @@
 #Filter peaks/genes 
-  
+set.seed(1234)  
 tmp.rna <- Matrix::rowSums(Control[["RNA"]]@layers$counts > 0)
 Control[["RNA"]] <- subset(Control[["RNA"]], features = names(which(tmp.rna >= 10)))
 tmp.atac <- Matrix::rowSums(Control[["ATAC"]]@counts > 0)
