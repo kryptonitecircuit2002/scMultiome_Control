@@ -38,6 +38,7 @@ links$pvalue.fdr = pvalue_adjusted
 #Filtering links
 #1. using thresholds on correlation coefficient and p-value
 links <- links[intersect(which(links$pvalue.fdr < 0.05), which(abs(links$score) > 0.1)),]
+
 #define CollapseToLongest 
 CollapseToLongestTranscript <- function(ranges) {
   range.df <- as.data.table(x = ranges)
@@ -85,15 +86,16 @@ DORC <- matrix(
 )
 
 for (i in 1:length(genes)) {
-  peaks <- links$peak[which(links$gene == genes[i])]
-  if(length(peaks) > 1)
-    DORC[i,] <- Matrix::colSums(atac[peaks,])
-  else
-    DORC[i,] <- atac[peaks,]
+   peaks <- links$peak[which(links$gene == genes[i])]
+ 
+    if (length(peaks) == 0) { # If no peaks are found for the gene, assign a row of zeros (or some default value) in DORC
+     DORC[i,] <- rep(0, ncol(atac))
+      } else if (length(peaks) > 1) { # If multiple peaks are found, sum their corresponding rows in atac
+           DORC[i,] <- Matrix::colSums(atac[peaks, ])
+      } else { #If only one peak is found, just copy its row from atac
+         DORC[i,] <- atac[peaks, ]
+       }
 }
-
-
-
 
 ######## Plotting statistics of peak-gene links ########
 
@@ -105,6 +107,7 @@ for (i in 1:length(distToTSS)) {
   
   peak <- peaks[i]
   gene <- gene.ranges[which(gene.ranges$gene_name == links$gene[i])]
+  if (length(gene) == 0) next 
   tss <- resize(x = gene, width = 1, fix = 'start')
   
   if(is.na(precede(peak, gene)))
@@ -117,13 +120,18 @@ for (i in 1:length(distToTSS)) {
 ## Histogram of distance to TSS (kb)
 df = as.data.frame(links@elementMetadata@listData)
 df$distance = distToTSS/1000
-
-p1 = ggplot(df, aes(x = distance)) + 
-  geom_histogram(color = 'black', fill = pal[5]) +
-  xlab('distance to TSS (kb)')+
-  theme_classic()
-p1
-
+df <- df[df$distance > -1000 & df$distance_kb < 1000, ]
+p1_new <- ggplot(df, aes(x = distance)) + 
+      geom_histogram(bins = 30, color = 'black', fill = pal[5]) +
+     xlab('Distance to TSS (kb)') +
+     ylab('Count') +
+     theme_classic() +
+     theme(
+            plot.title = element_text(hjust = 0.5, face = "bold"),
+           axis.title = element_text(face = "bold")
+        ) +
+    ggtitle("Distribution of Distances to TSS")
+p1_new
 
 ## Identify genes 'skipped' by peak in each link
 fo <- findOverlaps(links, gene.ranges)
@@ -141,45 +149,47 @@ for (i in 1:length(links)) {
 
 skipped.genes.num <- sapply(skipped.genes, function(x) length(unique(x)))
 
-
 ## Histograms of #peaks per gene, #genes per peaks, #genes skipped by peak
 peaks.per.gene <- data.frame(ppg = table(links$gene))
 genes.per.peak <- data.frame(gpp = table(links$peak))
 genes.skipped <- data.frame(skip = skipped.genes.num)
-
+mean(peaks.per.gene$ppg.Freq)
+quantile(peaks.per.gene$ppg.Freq, 0.95)
 p2_1 = ggplot(peaks.per.gene, aes(x = ppg.Freq)) + 
   geom_histogram(binwidth = 1, color = 'black', fill = pal[1]) + 
   xlab('# Peaks mapped to genes') +
-  annotate(geom = 'text', label = 'Mean=2.4\n95%=7', x = 20, y = 1500) +
+  annotate(geom = 'text', label = 'Mean=2.407\n95%=7', x = 20, y = 1500) +
   theme_classic()
 
+mean(genes.per.peak$gpp.Freq)
+sum(genes.per.peak$gpp.Freq == 1) / length(genes.per.peak$gpp.Freq) * 100
 p2_2 = ggplot(genes.per.peak, aes(x = gpp.Freq)) + 
   geom_histogram(binwidth = 1, color = 'black', fill = pal[2]) + 
   xlab('# Genes mapped to peaks') +
   scale_x_continuous(breaks = seq(0,10,2)) +
-  annotate(geom = 'text', label = 'Mean=1.2\nTo 1 Gene=84%', x = 7, y = 4500) +
+  annotate(geom = 'text', label = 'Mean=1.23\nTo 1 Gene=86.9%', x = 7, y = 4500) +
   theme_classic() +
   theme(axis.title.y = element_blank())
 
+mean(genes.skipped$skip)
+sum(genes.skipped$skip == 0) / length(genes.skipped$skip) * 100
 p2_3 = ggplot(genes.skipped, aes(x = skip)) + 
   geom_histogram(binwidth = 2, color = 'black', fill = pal[3]) + 
   xlab('# Genes skipped by peak') +
   theme(axis.title.y = element_blank()) +
-  annotate(geom = 'text', label = 'Mean=2.8\nNearest Gene=22%', x = 25, y = 3500) + 
+  annotate(geom = 'text', label = 'Mean=6.07\nNearest Gene=8.51%', x = 25, y = 3500) + 
   theme_classic() +
   theme(axis.title.y = element_blank())
 
 p2_1 + p2_2 + p2_3
 p2 = gridExtra::grid.arrange(p2_1, p2_2, p2_3, ncol = 3)
 
-
-
 ## Plot number of correlated peaks in increasing order vs. gene ranks
 peaks.per.gene <- table(links$gene)
 
 y = as.numeric(sort(peaks.per.gene))
-df <- data.frame(ind = 1:length(y), count = y, gene = names(sort(peaks.per.gene)))
-p3 = ggplot(df, aes(x = ind, y = count)) +
+df_p3 <- data.frame(ind = 1:length(y), count = y, gene = names(sort(peaks.per.gene)))
+p3 = ggplot(df_p3, aes(x = ind, y = count)) +
   geom_line(color = pal[1])+
   geom_point(color = pal[1], size = 0.6) +
   geom_hline(yintercept = 5, linetype = 'longdash', color = 'grey') +
@@ -188,17 +198,14 @@ p3 = ggplot(df, aes(x = ind, y = count)) +
   theme_classic() +
   xlab('Ranked gene list') +
   ylab('Number of correlated peaks') +
-  xlim(0,3600) +
+  xlim(0,7000) +
   scale_y_continuous(breaks=c(5,10, 15, 20, 25))
 p3
-
-
 
 ## Plot positive vs. negative correlations
 p4 = ggplot(links,aes(x = score)) + 
   geom_histogram(position = 'identity', fill = 'steelblue', color = 'black') + 
-  theme_bw() + 
+  theme_classic() + 
   xlab('Spearman correlation coefficient') +
   ylab('# peak-gene links')
 p4
-
