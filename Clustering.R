@@ -15,25 +15,28 @@ FindNeighbors(reduction = 'pca', dims = 1:30) %>%
 FindClusters(graph.name = 'SCT_snn', algorithm = 3, resolution = 0.5, verbose = FALSE) 
 Control <- RunUMAP(Control, reduction = 'pca', dims = 1:30,
                      reduction.name = 'umap.rna', reduction.key = 'rnaUMAP_',spread = 0.28)
-  
+DimPlot(Control, reduction = "umap.rna", label = T)  
+
 # ATAC-seq
 DefaultAssay(Control) <- "ATAC"
 Control <- RunTFIDF(Control, method = 3)
 Control <- FindTopFeatures(Control, min.cutoff = 'q75')
 Control <- RunSVD(Control)
-Control <- RunUMAP(Control, reduction = 'lsi', dims = 2:10, assay = 'ATAC',
-                    reduction.name = "umap.atac", reduction.key = "atacUMAP_", spread = 0.28)
 Control <- FindNeighbors(Control, reduction = 'lsi', dims = 2:10, assay = 'ATAC')
 Control <- FindClusters(Control, graph.name = 'ATAC_snn', algorithm = 2, resolution = 0.5)
-  
+Control <- RunUMAP(Control, reduction = 'lsi', dims = 2:10, assay = 'ATAC',
+                    reduction.name = "umap.atac", reduction.key = "atacUMAP_", spread = 0.28)
+DimPlot(Control, reduction = "umap.atac", label = T)
+
 # Weighted nearest neighbor (WNN) analysis using both modalities
 Control <- FindMultiModalNeighbors(Control,
                                     reduction.list = list("pca", "lsi"),
                                     dims.list = list(1:30, 2:10),
                                     modality.weight.name = 'RNA.weight')
+Control <- FindClusters(Control, graph.name = "wsnn", algorithm = 3, verbose = FALSE, resolution = 0.5)
 Control <- RunUMAP(Control, nn.name = "weighted.nn", 
                     reduction.name = "wnn.umap", reduction.key = "wnnUMAP_")
-Control <- FindClusters(Control, graph.name = "wsnn", algorithm = 3, verbose = FALSE, resolution = 0.5)
+DimPlot(Control, reduction = "wnn.umap", label = T)
 
 #Naming clusters
 ## WNN-derived
@@ -100,6 +103,7 @@ celltype.atac <- factor(celltype.atac,
                                   'neuronal', 'otic'), 
                        ordered = T)
 Control$celltype.atac <- celltype.atac
+
 #compute RNA and ATAC cluster concordance
 contingency_table <- table(Control$celltype.rna, Control$celltype.atac)
 melted_table <- melt(contingency_table)
